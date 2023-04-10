@@ -1,0 +1,356 @@
+---
+title: "RORaFoxp3-microarray-analysis"
+author: "artemii"
+date: '2022-07-05'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+ROOT_DIR="/Volumes/artemii-4tb/data/microarray/treg-microarray/"
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = ROOT_DIR)
+```
+
+## Loading libraries
+
+```{r}
+library(limma)
+library(affy)
+library(statmod)
+library(oligo)
+library(mogene20sttranscriptcluster.db)
+library(genefilter)
+```
+
+## Reading data
+
+### Get info about samples
+
+```{r}
+targets <- readTargets("config/targets.txt")
+targets
+```
+
+### Construct expression set: RMA normalize and summarize
+
+Core genes level summarization using median-polish
+
+```{r}
+RAW_DATA_PATHS=paste0("raw-data/", targets$FileName)
+# Affy commands don't work here because of MoGene 2.0st array, have to use oligo
+# eset <- justRMA(filenames = RAW_DATA_PATHS)
+
+
+rawData <- read.celfiles(RAW_DATA_PATHS)
+eset <- oligo::rma(rawData, target = "core")
+colnames(eset) <- row.names(targets)
+head(exprs(eset))
+```
+
+```{r}
+dim(eset)
+```
+
+### MDS plot
+
+In vitro, eWAT, spleen and lung samples are distinduishable in full MDS plot
+
+```{r}
+plotMDS(eset)
+```
+
+## Annotation
+
+Select probes with largest variance of those, which map to a single gene
+
+```{r}
+stat <- apply(exprs(eset), 1, var)
+single_gene_probes <- findLargest(row.names(eset), stat, data = "mogene20sttranscriptcluster")
+eset <- eset[row.names(eset) %in% single_gene_probes,]
+dim(eset)
+```
+### ! TODO Average Expression Filtering needed?
+```{r}
+Anno <- select(mogene20sttranscriptcluster.db, keys = row.names(eset), columns = c("ENTREZID", "SYMBOL", "GENENAME"), keytype = "PROBEID")
+Anno <- Anno[!is.na(Anno$ENTREZID),]
+keep_probes <- Anno$PROBEID
+eset <- eset[row.names(eset) %in% keep_probes, ]
+fData(eset) <- Anno[Anno$PROBEID %in% row.names(eset),]
+head(fData(eset))
+```
+
+```{r}
+dim(eset)
+```
+
+```{r}
+dim(fData(eset))
+```
+
+```{r}
+pData(eset) <- targets
+pData(eset)
+```
+
+```{r}
+eset
+```
+
+## Multi-factor mouse blocking linear model 
+### Prepare design matrix
+
+```{r}
+Mouse <- as.factor(targets$Mouse)
+
+Genotype <- as.factor(targets$Genotype)
+Genotype <- relevel(Genotype, ref = "WT")
+Tissue <- as.factor(targets$Tissue)
+Tissue <- relevel(Tissue, ref = "Spleen")
+Experiment <- as.factor(targets$Experiment)
+Treatment <- as.factor(targets$Treatment)
+Group <- as.factor(targets$Group)
+
+Condition <- factor(paste(targets$Genotype, targets$Tissue,
+                          targets$Treatment, sep = "."),
+                    levels = c("WT.Spleen.CD", "KO.Spleen.CD",
+                               "WT.eWAT.HFD", "KO.eWAT.HFD",
+                               "WT.Lung.HDM", "KO.Lung.HDM",
+                               "WT.mLN.HDM", "KO.mLN.HDM",
+                               "WT.in_vitro.IL2", "KO.in_vitro.IL2",
+                               "WT.in_vitro.IL2_IL4", "KO.in_vitro.IL2_IL4")
+                    )
+
+design <- model.matrix(~ 0 + Condition)
+colnames(design) <- levels(Condition)
+head(design)
+```
+
+```{r}
+dim(design)
+```
+
+```{r}
+colnames(design)
+```
+
+Just testing if there is no confused samples
+
+```{r}
+test_filenames <- targets$FileName[as.logical(design[,"WT.Lung.HDM"])]
+targets[targets$FileName %in% test_filenames,]
+```
+
+
+```{r}
+contrast.matrix <- makeContrasts(
+  KOvsWTin_vitro = (KO.in_vitro.IL2_IL4-KO.in_vitro.IL2) - 
+    (WT.in_vitro.IL2_IL4-WT.in_vitro.IL2),
+  levels = design
+)
+```
+
+
+
+### Compute correlations for measurements made on the same mice
+```{r}
+corfit <- duplicateCorrelation(eset, design, block = targets$Mouse)
+corfit$consensus
+```
+
+
+### Fit a linear model with contrasts and blocking
+
+```{r}
+
+fit <- lmFit(eset, design, block = targets$Mouse, correlation = corfit$consensus)
+multi_mouse <- fit
+fit2 <- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
+topTable(fit2, coef = "KOvsWTin_vitro")
+```
+## Multi-factor experiment blocking linear model
+### Prepare design matrix
+
+```{r}
+Experiment <- as.factor(targets$Experiment)
+Condition <- factor(paste(targets$Genotype, targets$Tissue,
+                          targets$Treatment, sep = "."),
+                    levels = c("WT.Spleen.CD", "KO.Spleen.CD",
+                               "WT.eWAT.HFD", "KO.eWAT.HFD",
+                               "WT.Lung.HDM", "KO.Lung.HDM",
+                               "WT.mLN.HDM", "KO.mLN.HDM",
+                               "WT.in_vitro.IL2", "KO.in_vitro.IL2",
+                               "WT.in_vitro.IL2_IL4", "KO.in_vitro.IL2_IL4")
+                    )
+design <- model.matrix(~ 0 + Condition)
+colnames(design) <- levels(Condition)
+colnames(design)
+```
+
+### Compute correlations for technical replicates
+```{r}
+corfit <- duplicateCorrelation(eset, design, block = targets$Experiment)
+corfit$consensus
+```
+
+### Fit a linear model
+
+```{r}
+fit <- lmFit(eset, design, block = targets$Experiment, correlation = corfit$consensus.correlation)
+multi_exp <- fit
+contrast.matrix <- makeContrasts(
+  KOvsWTinIL2 = KO.in_vitro.IL2-WT.in_vitro.IL2,
+  KOvsWTinIL2_IL4 = KO.in_vitro.IL2_IL4-WT.in_vitro.IL2_IL4,
+  Diff_IL4vsIL2 = (KO.in_vitro.IL2_IL4-KO.in_vitro.IL2) - (WT.in_vitro.IL2_IL4-WT.in_vitro.IL2),
+  KOvsWTineWAT = KO.eWAT.HFD-WT.eWAT.HFD,
+  KOvsWTinLung = KO.Lung.HDM-WT.Lung.HDM,
+  KOvsWTinmLN = KO.mLN.HDM-WT.mLN.HDM,
+  KOvsWTinSpleen = KO.Spleen.CD-WT.Spleen.CD,
+  Diff_mLNvsSpleen = (KO.mLN.HDM-KO.Spleen.CD) - (WT.mLN.HDM-WT.Spleen.CD),
+  levels = design
+)
+fit2 <- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
+```
+
+#### IL2 in vitro samples
+```{r}
+topTable(fit2, coef = "KOvsWTinIL2", number = 500)
+```
+
+#### IL2 + IL4 in vitro samples
+```{r}
+topTable(fit2, coef = "KOvsWTinIL2_IL4", number = 500)
+```
+
+#### Response to IL4 in KOvsWT
+```{r}
+topTable(fit2, coef = "Diff_IL4vsIL2", number = 500)
+```
+#### Epididymal White Adipose Tissue
+```{r}
+topTable(fit2, coef = "KOvsWTineWAT", number = 500)
+```
+
+#### Lung
+```{r}
+topTable(fit2, coef = "KOvsWTinLung", number = 500)
+```
+
+#### Mesenteric lymph nodes
+```{r}
+topTable(fit2, coef = "KOvsWTinmLN", number = 500)
+```
+
+#### Spleen
+```{r}
+topTable(fit2, coef = "KOvsWTinSpleen", number = 500)
+```
+
+#### Activated vs normal lymphoid Treg
+```{r}
+topTable(fit2, coef = "Diff_mLNvsSpleen", number = 500)
+```
+
+## Nested interaction linear model
+At first I will try a model with no blocking
+### Prepare design matrix
+Here each condition is compared to CD Spleen Treg
+I'm not sure it's the best option
+```{r}
+Condition <- factor(paste(targets$Tissue,targets$Treatment, sep = "."),
+                    levels = c("Spleen.CD",
+                               "eWAT.HFD",
+                               "Lung.HDM",
+                               "mLN.HDM",
+                               "in_vitro.IL2",
+                               "in_vitro.IL2_IL4")
+                    )
+Genotype <- as.factor(targets$Genotype)
+Genotype <- relevel(Genotype, ref = "WT")
+
+design <- model.matrix(~Genotype + Genotype:Condition)
+colnames(design)
+```
+
+### Fit a linear model
+
+#### IL2 in vitro samples
+```{r}
+fit <- lmFit(eset, design)
+nested_fit <- fit
+fit <- eBayes(fit)
+fit2 <- contrasts.fit(fit, c(0, 0, 0, 0, 0, 0,
+                             0, 0,-1, 1, 0, 0))
+fit2 <- eBayes(fit2)
+topTable(fit2, number = 100, adjust.method = "BH")
+```
+#### IL2 + IL4 in vitro samples
+```{r}
+fit <- lmFit(eset, design)
+fit <- eBayes(fit)
+fit2 <- contrasts.fit(fit, c(0,0,0,0,0,0,
+                             0,0,0,0,-1,1))
+fit2 <- eBayes(fit2)
+topTable(fit2, number = 100)
+```
+#### Epididymal White Adipose Tissue
+```{r}
+fit2 <- contrasts.fit(fit, c(0, 0,-1, 1, 0, 0,
+                             0, 0, 0, 0, 0, 0))
+fit2 <- eBayes(fit2)
+topTable(fit2, number = 100)
+```
+
+#### Lung
+```{r}
+fit2 <- contrasts.fit(fit, c(0, 0, 0, 0,-1, 1,
+                             0, 0, 0, 0, 0, 0))
+fit2 <- eBayes(fit2)
+topTable(fit2, number = 100)
+```
+#### Mesenteric lymph nodes
+```{r}
+fit2 <- contrasts.fit(fit, c(0, 0, 0, 0, 0, 0,
+                            -1, 1, 0, 0, 0, 0))
+fit2 <- eBayes(fit2)
+topTable(fit2, number = 100)
+```
+
+
+#### Spleen
+```{r}
+fit <- eBayes(fit)
+topTable(fit, coef = 2, number = 100)
+```
+
+## Single-factor with blocking
+This one doesn't work
+### ! TODO Why doesn't work??
+For in vitro samples there are three experiments. This might create batch effect. I'll try to include it in the linear model.
+### ! TODO Is it okay to do blocking with all the conditions?
+### Prepare design matrix
+```{r}
+
+Experiment <- as.factor(targets$Experiment)
+c <- factor(paste(targets$Genotype, targets$Tissue,
+                  targets$Treatment, sep = "."),
+            levels = c("WT.Spleen.CD", "KO.Spleen.CD",
+                       "WT.eWAT.HFD", "KO.eWAT.HFD",
+                       "WT.Lung.HDM", "KO.Lung.HDM",
+                       "WT.mLN.HDM", "KO.mLN.HDM",
+                       "WT.in_vitro.IL2", "KO.in_vitro.IL2",
+                       "WT.in_vitro.IL2_IL4", "KO.in_vitro.IL2_IL4")
+                    )
+
+design <- model.matrix(~Experiment + c)
+colnames(design)
+```
+
+### Fit a linear model
+```{r}
+fit <- lmFit(eset, design)
+```
+
+
+

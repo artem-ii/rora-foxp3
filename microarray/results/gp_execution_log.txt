@@ -1,0 +1,11 @@
+# Created: Fri Feb 08 11:00:24 UTC 2019 by artemii.nikitin
+# Job: 84018    server:  https://cloud.genepattern.org/gp/
+# Module: ComBat urn:lsid:broad.mit.edu:cancer.software.genepattern.module.analysis:00127:3.1
+# Parameters: 
+#    input.file = 08-02-19_For_GenePattern_Combat_Treg-datast-MaxMed-Gene-Collapsed.gct   https://cloud.genepattern.org/gp/users/artemii.nikitin/08-02-19_For_GenePattern_Combat_Treg-datast-MaxMed-Gene-Collapsed.gct
+#    sample.info.file = 08-02-19_For_GenePattern_Combat_sample_info.txt   https://cloud.genepattern.org/gp/users/artemii.nikitin/08-02-19_For_GenePattern_Combat_sample_info.txt
+#    covariate.columns = all
+#    absent.calls.filter = 
+#    create.prior.plots = F
+#    prior.method = parametric
+#    output.file = <input.file_basename>.combat.<input.file_extension>

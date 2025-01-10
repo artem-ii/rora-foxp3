@@ -5,8 +5,9 @@ date: '2022-07-05'
 output: html_document
 ---
 
+
 ```{r setup, include=FALSE}
-ROOT_DIR="/Volumes/artemii-4tb/data/microarray/treg-microarray/"
+ROOT_DIR="/Volumes/artemii-4tb/data/rora-foxp3-genomics/microarray/treg-microarray"
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = ROOT_DIR)
 ```
@@ -20,6 +21,11 @@ library(statmod)
 library(oligo)
 library(mogene20sttranscriptcluster.db)
 library(genefilter)
+library(tidyverse)
+library(ggplot2)
+library(ggrepel)
+library(svglite)
+
 ```
 
 ## Reading data
@@ -47,8 +53,53 @@ colnames(eset) <- row.names(targets)
 head(exprs(eset))
 ```
 
+## QC
+### MA plots per tissue
 ```{r}
-dim(eset)
+
+invitro_indeces <- 1:20
+ewat_indeces <- 21:26
+spleen_indeces <- 27:34
+lung_indeces <- 35:40
+
+tissue_index_list <- list(invitro_indeces,
+                          ewat_indeces,
+                          spleen_indeces,
+                          lung_indeces)
+
+for (tissue in tissue_index_list){
+  getwd()
+  eset_tissue_slice <- eset[, tissue]
+  
+  par(mar = c(1, 1, 1, 1))
+  xl <- c(2.8, 4)
+  yl <- c(-1, 1)
+  MAplot(eset_tissue_slice,
+         pairs = TRUE,
+         ylim = yl,
+         xlim = xl,
+         plotFun = plot)
+  }
+
+```
+
+### Box plots
+
+```{r}
+oligo::boxplot(eset)
+```
+
+### Density plots
+```{r}
+oligo::hist(eset, transfo=log2)
+```
+
+### Array quality
+
+```{r}
+arrayw <- arrayWeights(eset)
+barplot(arrayw, xlab="Array", ylab="Weight", col="white", las=2)
+abline(h=1, lwd=1, lty=2)
 ```
 
 ### MDS plot
@@ -69,9 +120,9 @@ single_gene_probes <- findLargest(row.names(eset), stat, data = "mogene20sttrans
 eset <- eset[row.names(eset) %in% single_gene_probes,]
 dim(eset)
 ```
-### ! TODO Average Expression Filtering needed?
+
 ```{r}
-Anno <- select(mogene20sttranscriptcluster.db, keys = row.names(eset), columns = c("ENTREZID", "SYMBOL", "GENENAME"), keytype = "PROBEID")
+Anno <- AnnotationDbi::select(mogene20sttranscriptcluster.db, keys = row.names(eset), columns = c("ENTREZID", "SYMBOL", "GENENAME"), keytype = "PROBEID")
 Anno <- Anno[!is.na(Anno$ENTREZID),]
 keep_probes <- Anno$PROBEID
 eset <- eset[row.names(eset) %in% keep_probes, ]
@@ -96,78 +147,6 @@ pData(eset)
 eset
 ```
 
-## Multi-factor mouse blocking linear model 
-### Prepare design matrix
-
-```{r}
-Mouse <- as.factor(targets$Mouse)
-
-Genotype <- as.factor(targets$Genotype)
-Genotype <- relevel(Genotype, ref = "WT")
-Tissue <- as.factor(targets$Tissue)
-Tissue <- relevel(Tissue, ref = "Spleen")
-Experiment <- as.factor(targets$Experiment)
-Treatment <- as.factor(targets$Treatment)
-Group <- as.factor(targets$Group)
-
-Condition <- factor(paste(targets$Genotype, targets$Tissue,
-                          targets$Treatment, sep = "."),
-                    levels = c("WT.Spleen.CD", "KO.Spleen.CD",
-                               "WT.eWAT.HFD", "KO.eWAT.HFD",
-                               "WT.Lung.HDM", "KO.Lung.HDM",
-                               "WT.mLN.HDM", "KO.mLN.HDM",
-                               "WT.in_vitro.IL2", "KO.in_vitro.IL2",
-                               "WT.in_vitro.IL2_IL4", "KO.in_vitro.IL2_IL4")
-                    )
-
-design <- model.matrix(~ 0 + Condition)
-colnames(design) <- levels(Condition)
-head(design)
-```
-
-```{r}
-dim(design)
-```
-
-```{r}
-colnames(design)
-```
-
-Just testing if there is no confused samples
-
-```{r}
-test_filenames <- targets$FileName[as.logical(design[,"WT.Lung.HDM"])]
-targets[targets$FileName %in% test_filenames,]
-```
-
-
-```{r}
-contrast.matrix <- makeContrasts(
-  KOvsWTin_vitro = (KO.in_vitro.IL2_IL4-KO.in_vitro.IL2) - 
-    (WT.in_vitro.IL2_IL4-WT.in_vitro.IL2),
-  levels = design
-)
-```
-
-
-
-### Compute correlations for measurements made on the same mice
-```{r}
-corfit <- duplicateCorrelation(eset, design, block = targets$Mouse)
-corfit$consensus
-```
-
-
-### Fit a linear model with contrasts and blocking
-
-```{r}
-
-fit <- lmFit(eset, design, block = targets$Mouse, correlation = corfit$consensus)
-multi_mouse <- fit
-fit2 <- contrasts.fit(fit, contrast.matrix)
-fit2 <- eBayes(fit2)
-topTable(fit2, coef = "KOvsWTin_vitro")
-```
 ## Multi-factor experiment blocking linear model
 ### Prepare design matrix
 
@@ -213,6 +192,7 @@ fit2 <- contrasts.fit(fit, contrast.matrix)
 fit2 <- eBayes(fit2)
 ```
 
+
 #### IL2 in vitro samples
 ```{r}
 topTable(fit2, coef = "KOvsWTinIL2", number = 500)
@@ -252,105 +232,191 @@ topTable(fit2, coef = "KOvsWTinSpleen", number = 500)
 topTable(fit2, coef = "Diff_mLNvsSpleen", number = 500)
 ```
 
-## Nested interaction linear model
-At first I will try a model with no blocking
-### Prepare design matrix
-Here each condition is compared to CD Spleen Treg
-I'm not sure it's the best option
-```{r}
-Condition <- factor(paste(targets$Tissue,targets$Treatment, sep = "."),
-                    levels = c("Spleen.CD",
-                               "eWAT.HFD",
-                               "Lung.HDM",
-                               "mLN.HDM",
-                               "in_vitro.IL2",
-                               "in_vitro.IL2_IL4")
-                    )
-Genotype <- as.factor(targets$Genotype)
-Genotype <- relevel(Genotype, ref = "WT")
 
-design <- model.matrix(~Genotype + Genotype:Condition)
-colnames(design)
+## Visualization
+### Volcano plot function
+
+```{r}
+plot_volcano <- function(exp_data, top_label = 5,
+                         lim_logFC = F,
+                         lim_FDR = F,
+                         lim_up_x = NULL,
+                         lim_dn_x = NULL,
+                         logfc_fdr_thresholds_for_labels = NULL,
+                         additional_genes_to_label = c()) {
+
+  
+  exp_data <- exp_data %>%
+    mutate(
+      Significance = case_when(
+        abs(logFC) >= log(2, base = 2) & P.Value <= 0.05 ~ "FDR_0_05",
+        TRUE ~ "UNCHANGED"
+      )
+    )
+  
+
+  if (length(logfc_fdr_thresholds_for_labels) != 0) {
+    logfc_threshold = logfc_fdr_thresholds_for_labels[1]
+    fdr_threshold = logfc_fdr_thresholds_for_labels[2]
+    exp_data <- exp_data %>%
+      mutate(
+        Expression = case_when(logFC >= logfc_threshold & P.Value <= fdr_threshold ~ "Up-regulated",
+                               logFC <= - logfc_threshold & P.Value <= fdr_threshold ~ "Down-regulated",
+                               TRUE ~ "Unchanged")
+      )
+  } else {
+    logfc_threshold = log(2, base = 2)
+    fdr_threshold = 0.05
+    exp_data <- exp_data %>%
+      mutate(
+        Expression = case_when(logFC >= logfc_threshold & P.Value <= fdr_threshold ~ "Up-regulated",
+                             logFC <= -logfc_threshold & P.Value <= fdr_threshold ~ "Down-regulated",
+                             TRUE ~ "Unchanged")
+      )
+    }
+    
+  top <-  top_label
+  top_genes_df <- bind_rows(
+    exp_data %>%
+      filter(Expression == 'Up-regulated') %>%
+      arrange(P.Value, desc(abs(logFC))) %>%
+      head(top),
+    exp_data %>%
+      filter(Expression == 'Down-regulated') %>%
+      arrange(P.Value, desc(abs(logFC))) %>%
+      head(top),
+  )
+  
+  genes_to_label_df <- bind_rows(
+    top_genes_df,
+    exp_data %>%
+      filter(SYMBOL %in% additional_genes_to_label)
+  )
+  
+  print(head(genes_to_label_df, n = top))
+  if (is.null(lim_up_x)){
+    lim_up_x <- max(genes_to_label_df$logFC) * 1.2
+  }
+  
+  if (is.null(lim_dn_x)){
+    lim_dn_x <- min(genes_to_label_df$logFC) * 1.2
+  }
+  
+  lim_up_y <- -log(min(genes_to_label_df$P.Value), 10) * 1.2
+    
+  lim_x <- max(c(abs(lim_up_x), abs(lim_dn_x)))
+  
+  num_up_regulated <- nrow(filter(exp_data, Expression == 'Up-regulated'))
+  print(filter(exp_data, Expression == 'Up-regulated'))
+  num_dn_regulated <- nrow(filter(exp_data, Expression == 'Down-regulated'))
+  print(filter(exp_data, Expression == 'Down-regulated'))
+  
+   ggplot(exp_data, aes(x = logFC, y = -log(P.Value, 10))) +
+     geom_point(aes(color = Expression), size = 2) +
+     
+     scale_x_continuous(expand = c(0, 0), limits = c(lim_dn_x, lim_up_x)) +
+     scale_y_continuous(expand = c(0, 0), limits = c(0, lim_up_y)) +
+     
+     
+     scale_color_manual(values = c("Unchanged" = "#5C88DA",
+                                   "Up-regulated" = "#CC0C00",
+                                   "Down-regulated" = "#CC0C00")) +
+     
+     
+     geom_vline(xintercept=c(-logfc_threshold, logfc_threshold),
+                col="grey",
+                linetype = "dashed",
+                size = 0.8) +
+     geom_hline(yintercept=-log10(fdr_threshold),
+                col="grey",
+                linetype = "dashed",
+                size = 0.8) +
+     annotate(geom = "label",
+              x = c(- logfc_threshold, logfc_threshold),
+              y = lim_up_y - 0.2,
+              label = c(- logfc_threshold, logfc_threshold),
+              fill = "white",
+              color =  "grey",
+              size = 5,
+              label.size = NA,
+              label.padding = unit(0, "lines")) +
+     
+     
+     geom_text_repel(data = genes_to_label_df,
+                     aes(logFC, -log(P.Value, 10), label = SYMBOL),
+                     size = 6,
+                     max.overlaps = 20,
+                     min.segment.length = 0,
+                     segment.size = 1,
+                     #nudge_x = - 0.2,
+                     #force_pull = - 0.007
+                     ) +
+     
+     
+     annotate(geom = "text",
+              x = lim_x - 0.5,
+              y = lim_up_y - 0.2,
+              label = paste0("Up: ", num_up_regulated),
+              size = 5,
+              color = "grey") +
+     annotate(geom = "text",
+              x = lim_dn_x + 0.5,
+              y = lim_up_y - 0.2,
+              label = paste0("Down: ", num_dn_regulated),
+              size = 5,
+              color = "grey") +
+     annotate(geom = "text",
+              x = lim_dn_x + 0.45,
+              y = -log10(fdr_threshold) - 0.2,
+              label = paste0("P = ", fdr_threshold),
+              size = 5,
+              color = "grey") +
+
+     theme_classic() +
+     theme(legend.position = "none")
+   }
 ```
 
-### Fit a linear model
 
-#### IL2 in vitro samples
 ```{r}
-fit <- lmFit(eset, design)
-nested_fit <- fit
-fit <- eBayes(fit)
-fit2 <- contrasts.fit(fit, c(0, 0, 0, 0, 0, 0,
-                             0, 0,-1, 1, 0, 0))
-fit2 <- eBayes(fit2)
-topTable(fit2, number = 100, adjust.method = "BH")
-```
-#### IL2 + IL4 in vitro samples
-```{r}
-fit <- lmFit(eset, design)
-fit <- eBayes(fit)
-fit2 <- contrasts.fit(fit, c(0,0,0,0,0,0,
-                             0,0,0,0,-1,1))
-fit2 <- eBayes(fit2)
-topTable(fit2, number = 100)
-```
-#### Epididymal White Adipose Tissue
-```{r}
-fit2 <- contrasts.fit(fit, c(0, 0,-1, 1, 0, 0,
-                             0, 0, 0, 0, 0, 0))
-fit2 <- eBayes(fit2)
-topTable(fit2, number = 100)
+diff_exp_data <- topTable(fit2, coef = "KOvsWTinIL2_IL4", number = 20000)
+
+
+
 ```
 
-#### Lung
 ```{r}
-fit2 <- contrasts.fit(fit, c(0, 0, 0, 0,-1, 1,
-                             0, 0, 0, 0, 0, 0))
-fit2 <- eBayes(fit2)
-topTable(fit2, number = 100)
-```
-#### Mesenteric lymph nodes
-```{r}
-fit2 <- contrasts.fit(fit, c(0, 0, 0, 0, 0, 0,
-                            -1, 1, 0, 0, 0, 0))
-fit2 <- eBayes(fit2)
-topTable(fit2, number = 100)
+diff_exp_data_paper <- read_delim("/Users/artemii/Desktop/exprs_IL4.csv", delim = ";")
 ```
 
 
-#### Spleen
 ```{r}
-fit <- eBayes(fit)
-topTable(fit, coef = 2, number = 100)
+diff_exp_data_old <- na.omit(read_delim("/Users/artemii/Desktop/KO_act_IL4-WT_act_IL4(ComBat)-31-may-2020.txt"))
 ```
 
-## Single-factor with blocking
-This one doesn't work
-### ! TODO Why doesn't work??
-For in vitro samples there are three experiments. This might create batch effect. I'll try to include it in the linear model.
-### ! TODO Is it okay to do blocking with all the conditions?
-### Prepare design matrix
 ```{r}
-
-Experiment <- as.factor(targets$Experiment)
-c <- factor(paste(targets$Genotype, targets$Tissue,
-                  targets$Treatment, sep = "."),
-            levels = c("WT.Spleen.CD", "KO.Spleen.CD",
-                       "WT.eWAT.HFD", "KO.eWAT.HFD",
-                       "WT.Lung.HDM", "KO.Lung.HDM",
-                       "WT.mLN.HDM", "KO.mLN.HDM",
-                       "WT.in_vitro.IL2", "KO.in_vitro.IL2",
-                       "WT.in_vitro.IL2_IL4", "KO.in_vitro.IL2_IL4")
-                    )
-
-design <- model.matrix(~Experiment + c)
-colnames(design)
+diff_exp_data_combat <- na.omit(read_delim("/Volumes/artemii-4tb/data/rora-foxp3-genomics/microarray/old-version-analysis/RORaTregMA/test_20250105.txt"))
 ```
 
-### Fit a linear model
+#### Plot
+
 ```{r}
-fit <- lmFit(eset, design)
+plot_volcano(diff_exp_data_old,
+             top_label = 0,
+             lim_up_x = 3,
+             lim_dn_x = -2,
+             logfc_fdr_thresholds_for_labels = c(0.58, 0.05),
+             additional_genes_to_label = c("Bach2", "Cd226", "Il5", "Prf1", "Il3",
+                                           "Csf2", "Gzme", "Gzmd", "Gzmf", "Gzmg",
+                                           "Gstm5", "Trim30d", "Gm23482"
+                                           ))
 ```
 
-
+```{r}
+ggsave("~/Desktop/volcano_IL4_act.svg",
+       width = 1572,
+       height = 1456,
+       units = "px",
+       device = svglite,)
+```
 

@@ -1,7 +1,7 @@
 
 ---------------------------------
 find_treg_tf_targets.sh run at
-Mon Mar 10 23:08:33 EET 2025
+Mon Mar 10 23:55:34 EET 2025
 ---------------------------------
 
 Script requires R 4.4.0, bedtools 2.31.1 and python3.10 with pandas and numpy installed
@@ -151,7 +151,7 @@ Reading RORA KO Treg gene expression data...
 
 
 The following tissue T cell marker genes have changed histone marks and are differentially expressed (p. value < 0.05, FC > ±1.2) between WT and Rora KO Treg 
-{'Trim12a', 'Nr4a3', 'Cxcr6', 'Hist1h2bc', 'Nsd3', 'Pxdc1', 'Cenpw', 'Bach2', 'Ikzf2', 'Ly6g5b', 'Pgam1', 'Havcr2', 'Slamf7'}
+{'Nsd3', 'Cxcr6', 'Ikzf2', 'Slamf7', 'Bach2', 'Pgam1', 'Pxdc1', 'Havcr2', 'Nr4a3', 'Hist1h2bc', 'Ly6g5b', 'Cenpw', 'Trim12a'}
 
 
 -------------------------------------------------------
@@ -162,7 +162,7 @@ Step 4: Filtering based on the presence of RORA Binding sites
 Reading annotation of Fang et al 2014 murine liver RORA ChIP-seq...
 Read RORA binding signals in 1124 genes with gene names
 Of the previous list, the following have RORA binding sites 
-{'Trim12a', 'Nr4a3', 'Nsd3', 'Cenpw', 'Bach2', 'Ikzf2', 'Pgam1'}
+{'Nsd3', 'Ikzf2', 'Bach2', 'Pgam1', 'Nr4a3', 'Cenpw', 'Trim12a'}
 
 
 -------------------------------------------------------

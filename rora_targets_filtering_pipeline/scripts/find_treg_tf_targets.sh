@@ -15,7 +15,7 @@ echo
 bedtools --version
 echo ---------------------------------
 
-ROOT_PATH="/Users/artemii/Desktop/scripts/find_rora_ko_treg_tfs"
+ROOT_PATH="/Users/artemii/rorafoxp3_2023/code/rora-foxp3/rora-foxp3/rora_targets_filtering_pipeline"
 
 PROCESSED_DATA_PATH="$ROOT_PATH/processed_data"
 SCRIPTS_PATH="$ROOT_PATH/scripts"

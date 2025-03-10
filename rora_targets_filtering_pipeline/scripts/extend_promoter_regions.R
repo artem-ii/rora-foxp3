@@ -3,7 +3,7 @@
 # data/miragaia_et_al/tissue_treg_tmem_genesets/mmc4.xlsx
 # ±10kb promoters
 
-ROOT_PATH="/Users/artemii/Desktop/scripts/find_rora_ko_treg_tfs/"
+ROOT_PATH="/Users/artemii/rorafoxp3_2023/code/rora-foxp3/rora-foxp3/rora_targets_filtering_pipeline/"
 OUTPUT_PATH=paste0(ROOT_PATH, "processed_data/miragaia_extended_promoter_regions/")
 
 

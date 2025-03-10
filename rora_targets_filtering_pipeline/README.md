@@ -1,6 +1,8 @@
 # Finding RORA targets in Treg cells
 #### The aim of the current pipeline is to find potential targets of RORA, via which it controls the function and identity of Treg cells, to explain the phenotype observed in Rora-flox FOXP3-Cre mice in models of allergic airway inflammation, colitis and diet induced obesity.
 
+A graphic scheme of the pipeline can be seen in Figure 8b of the article.
+
 To reproduce the pipeline please clone the repo, navigate to `rora_targets_filtering_pipeline/scripts` and execute `run_gene_filtering_pipeline.sh`
 The script will perform processing and output a report text file with contents similar to those displayed below.
 

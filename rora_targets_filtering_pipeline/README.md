@@ -18,8 +18,8 @@ Step 1: Finding chromatin changes in RORA KO Treg relevant for Treg identity and
 To filter genes potentially regulated by RORA in Treg and important for controlling Treg fate,
 identity and function in the context of non-lymphoid tissues we used marker gene lists
 of Treg and Tmem cells in colon, skin and draining lymph nodes.
-Data were taken from Miragaia et al. 2019. See data/miragaia_et_al/tissue_treg_tmem_genesets/mmc4.xlsx
-and data/miragaia_et_al/source_article for the publication.
+Data were taken from Miragaia et al. 2019. See `data/miragaia_et_al/tissue_treg_tmem_genesets/mmc4.xlsx`
+and `data/miragaia_et_al/source_article` for the publication.
 
 Promoter coordinates of tissue Treg and Tmem marker genes were found using EPDnew database
 ±10kb from promoter coordinates will be checked for changed histone marks between WT and RORA KO Treg

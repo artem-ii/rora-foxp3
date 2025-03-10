@@ -1,0 +1,189 @@
+
+---------------------------------
+find_treg_tf_targets.sh run at
+Mon Mar 10 23:08:33 EET 2025
+---------------------------------
+
+Script requires R 4.4.0, bedtools 2.31.1 and python3.10 with pandas and numpy installed
+
+---------------------------------
+R version 4.4.0 (2024-04-24) -- "Puppy Cup"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: aarch64-apple-darwin20
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under the terms of the
+GNU General Public License versions 2 or 3.
+For more information about these matters see
+https://www.gnu.org/licenses/.
+
+
+Python 3.10.16
+
+bedtools v2.31.1
+---------------------------------
+
+
+---------------------------------
+Step 1: Finding chromatin changes in RORA KO Treg relevant for Treg identity and function in non-lymphoid tissues
+---------------------------------
+
+To filter genes potentially regulated by RORA in Treg and important for controlling Treg fate,
+identity and function in the context of non-lymphoid tissues we used marker gene lists
+of Treg and Tmem cells in colon, skin and draining lymph nodes.
+Data were taken from Miragaia et al. 2019. See data/miragaia_et_al/tissue_treg_tmem_genesets/mmc4.xlsx
+and data/miragaia_et_al/source_article for the publication.
+
+Promoter coordinates of tissue Treg and Tmem marker genes were found using EPDnew database
+±10kb from promoter coordinates will be checked for changed histone marks between WT and RORA KO Treg
+
+Executing extend_promoter_regions.R to extend promoter regions...
+---------------------------------
+
+[1] "Extending ±10kb from promoter coordinate for file: bln-tmem-activated-mouse_epdnew_QUuxV.bed"
+[1] "Extending ±10kb from promoter coordinate for file: bln-tmem-lymphoid-mouse_epdnew_EOLUT.bed"
+[1] "Extending ±10kb from promoter coordinate for file: bln-tmem-th1-mouse_epdnew_Y8WvW.bed"
+[1] "Extending ±10kb from promoter coordinate for file: bln-tmem-th17-mouse_epdnew_CLXQF.bed"
+[1] "Extending ±10kb from promoter coordinate for file: bln-treg-effector-mouse_epdnew_2ZsD0.bed"
+[1] "Extending ±10kb from promoter coordinate for file: bln-treg-lymphoid-mouse_epdnew_G8g1W.bed"
+[1] "Extending ±10kb from promoter coordinate for file: bln-treg-nlt-like-mouse_epdnew_chWf4.bed"
+[1] "Extending ±10kb from promoter coordinate for file: bln-treg-stat1-mouse_epdnew_0CIeZ.bed"
+[1] "Extending ±10kb from promoter coordinate for file: colon-lymphoid-tissue-mouse_epdnew_KKxsm.bed"
+[1] "Extending ±10kb from promoter coordinate for file: colon-nlt-mouse_epdnew_4ZTfj.bed"
+[1] "Extending ±10kb from promoter coordinate for file: colon-stress-mouse_epdnew_akHQB.bed"
+[1] "Extending ±10kb from promoter coordinate for file: colon-suppress-mouse_epdnew_S9B7g.bed"
+[1] "Extending ±10kb from promoter coordinate for file: colon-tmem-lt-like-mouse_epdnew_tXEkA.bed"
+[1] "Extending ±10kb from promoter coordinate for file: colon-tmem-nlt-mouse_epdnew_vdEx4.bed"
+[1] "Extending ±10kb from promoter coordinate for file: colon-tmem-stress-mouse_epdnew_OtRaM.bed"
+[1] "Extending ±10kb from promoter coordinate for file: colon-tmem-stress-mouse_epdnew_p2bEm.bed"
+[1] "Extending ±10kb from promoter coordinate for file: colon-tmem-th1-mouse_epdnew_tljbV.bed"
+[1] "Extending ±10kb from promoter coordinate for file: colon-tmem-th2-mouse_epdnew_91exD.bed"
+[1] "Extending ±10kb from promoter coordinate for file: colon-tmem-th17-mouse_epdnew_Hz2gs.bed"
+[1] "Extending ±10kb from promoter coordinate for file: mln-tmem-activated-mouse_epdnew_J2K5d.bed"
+[1] "Extending ±10kb from promoter coordinate for file: mln-tmem-cxcl10-mouse_epdnew_OyenH.bed"
+[1] "Extending ±10kb from promoter coordinate for file: mln-tmem-cycling-mouse_epdnew_y3zhP.bed"
+[1] "Extending ±10kb from promoter coordinate for file: mln-tmem-lymphoid-egressing-mouse_epdnew_BBtYE.bed"
+[1] "Extending ±10kb from promoter coordinate for file: mln-tmem-lymphoid-resident-mouse_epdnew_vSEI5.bed"
+[1] "Extending ±10kb from promoter coordinate for file: mln-tmem-stress-mouse_epdnew_nRJ0b.bed"
+[1] "Extending ±10kb from promoter coordinate for file: mln-tmem-th17-mouse_epdnew_17oTr.bed"
+[1] "Extending ±10kb from promoter coordinate for file: mln-treg-effector-mouse_epdnew_xXthl.bed"
+[1] "Extending ±10kb from promoter coordinate for file: mln-treg-lymphoid-mouse_epdnew_nCHWU.bed"
+[1] "Extending ±10kb from promoter coordinate for file: mln-treg-nlt-like-mouse_epdnew_mMFgn.bed"
+[1] "Extending ±10kb from promoter coordinate for file: skin-tmem-nlt-mouse_epdnew_ObiLI.bed"
+[1] "Extending ±10kb from promoter coordinate for file: skin-treg-nlt-mouse_epdnew_oU87U.bed"
+[1] "Extending ±10kb from promoter coordinate for file: skin-treg-tmem-low-quality-mouse_epdnew_eRauJ.bed"
+[1] "Done extending regions"
+
+Moving files to output directory...
+---------------------------------
+
+
+---------------------------------
+Step 2: Intersecting RORA KO Treg changed histone mark peaks with promoter regions...
+---------------------------------
+
+Executing bedtools intersect scripts...
+Finding differential RORA KO Treg histone mark signals in
+
+extended+-10kb-bln-tmem-activated-mouse_epdnew_QUuxV.bed
+extended+-10kb-bln-tmem-lymphoid-mouse_epdnew_EOLUT.bed
+extended+-10kb-bln-tmem-th1-mouse_epdnew_Y8WvW.bed
+extended+-10kb-bln-tmem-th17-mouse_epdnew_CLXQF.bed
+extended+-10kb-bln-treg-effector-mouse_epdnew_2ZsD0.bed
+extended+-10kb-bln-treg-lymphoid-mouse_epdnew_G8g1W.bed
+extended+-10kb-bln-treg-nlt-like-mouse_epdnew_chWf4.bed
+extended+-10kb-bln-treg-stat1-mouse_epdnew_0CIeZ.bed
+extended+-10kb-colon-lymphoid-tissue-mouse_epdnew_KKxsm.bed
+extended+-10kb-colon-nlt-mouse_epdnew_4ZTfj.bed
+extended+-10kb-colon-stress-mouse_epdnew_akHQB.bed
+extended+-10kb-colon-suppress-mouse_epdnew_S9B7g.bed
+extended+-10kb-colon-tmem-lt-like-mouse_epdnew_tXEkA.bed
+extended+-10kb-colon-tmem-nlt-mouse_epdnew_vdEx4.bed
+extended+-10kb-colon-tmem-stress-mouse_epdnew_OtRaM.bed
+extended+-10kb-colon-tmem-stress-mouse_epdnew_p2bEm.bed
+extended+-10kb-colon-tmem-th1-mouse_epdnew_tljbV.bed
+extended+-10kb-colon-tmem-th17-mouse_epdnew_Hz2gs.bed
+extended+-10kb-colon-tmem-th2-mouse_epdnew_91exD.bed
+extended+-10kb-mln-tmem-activated-mouse_epdnew_J2K5d.bed
+extended+-10kb-mln-tmem-cxcl10-mouse_epdnew_OyenH.bed
+extended+-10kb-mln-tmem-cycling-mouse_epdnew_y3zhP.bed
+extended+-10kb-mln-tmem-lymphoid-egressing-mouse_epdnew_BBtYE.bed
+extended+-10kb-mln-tmem-lymphoid-resident-mouse_epdnew_vSEI5.bed
+extended+-10kb-mln-tmem-stress-mouse_epdnew_nRJ0b.bed
+extended+-10kb-mln-tmem-th17-mouse_epdnew_17oTr.bed
+extended+-10kb-mln-treg-effector-mouse_epdnew_xXthl.bed
+extended+-10kb-mln-treg-lymphoid-mouse_epdnew_nCHWU.bed
+extended+-10kb-mln-treg-nlt-like-mouse_epdnew_mMFgn.bed
+extended+-10kb-skin-tmem-nlt-mouse_epdnew_ObiLI.bed
+extended+-10kb-skin-treg-nlt-mouse_epdnew_oU87U.bed
+extended+-10kb-skin-treg-tmem-low-quality-mouse_epdnew_eRauJ.bed
+
+Done finding differential binding in promoters
+
+For full list of histone mark changes found in Miragaia et al. marker genes with tissue and cell type annotation
+see processed_data/merged_promoter_db_table/merged_promoter_db_table_all_tissues.tsv
+
+---------------------------------
+Executing gene_selection_rora_treg.py for further filtering steps...
+
+
+
+-------------------------------------------------------
+gene_selection_rora_treg.py started
+
+
+Parsing file with promoters containing differential binding...
+Read total 2434 differential binding sites within marker gene promoters (There are duplicates because of different tissues).
+
+
+There are 436 tissue Treg and Tmem marker genes containing differential histone mark changes in Rora KO Treg
+Of these genes 47 are transcription factors based on RIKEN database
+(Read 1226 from RIKEN DB list)
+See data/riken_tf/tf-db_riken.txt
+
+
+-------------------------------------------------------
+Step 3: Filtering based on RORA KO Treg differential gene expression
+-------------------------------------------------------
+
+
+Reading RORA KO Treg gene expression data...
+
+
+The following tissue T cell marker genes have changed histone marks and are differentially expressed (p. value < 0.05, FC > ±1.2) between WT and Rora KO Treg 
+{'Trim12a', 'Nr4a3', 'Cxcr6', 'Hist1h2bc', 'Nsd3', 'Pxdc1', 'Cenpw', 'Bach2', 'Ikzf2', 'Ly6g5b', 'Pgam1', 'Havcr2', 'Slamf7'}
+
+
+-------------------------------------------------------
+Step 4: Filtering based on the presence of RORA Binding sites
+-------------------------------------------------------
+
+
+Reading annotation of Fang et al 2014 murine liver RORA ChIP-seq...
+Read RORA binding signals in 1124 genes with gene names
+Of the previous list, the following have RORA binding sites 
+{'Trim12a', 'Nr4a3', 'Nsd3', 'Cenpw', 'Bach2', 'Ikzf2', 'Pgam1'}
+
+
+-------------------------------------------------------
+Step 5: Filtering based on tissue Treg transcription factor network gene list
+-------------------------------------------------------
+
+
+To reinforce the focus on the genes, regulating Treg identity and function in non-lymphoid tissues
+we further filtered our candidate genes using known transcription factor genes, exerting broad control
+of Treg.
+Data taken from DiSpirito et al. 2018 Table S2, see data/dispirito_et_al/list_of_tissue_treg_tf_network/aat5861_Table_S2.xlsx (Sheet 2)
+and data/dispirito_et_al/source_article/ for publication
+Reading gene list of tissue-specific Treg transcription factors from DiSpirito et al. 2018...
+
+
+When further filtering the set using DiSpirito et al. TF network list, the result is the following: 
+{'Bach2'}
+
+---------------------------------
+Done filtering
+---------------------------------
+
+find_treg_tf_targets.sh executed
+

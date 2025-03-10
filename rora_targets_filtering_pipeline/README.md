@@ -1,0 +1,94 @@
+# Finding RORA targets in Treg cells
+## The aim of the current pipeline is to find potential targets of RORA, via which it controls the function and identity of Treg cells, to explain the phenotype observed in Rora-flox FOXP3-Cre mice in models of allergic airway inflammation, colitis and diet induced obesity.
+
+To reproduce the pipeline please clone the repo, navigate to `rora_targets_filtering_pipeline/scripts` and execute `run_gene_filtering_pipeline.sh`
+The script will perform processing and output a report text file with contents similar to those displayed below.
+
+The code for each step can be found in respective scripts in `scripts` directory.
+You can also observe the stepwise filtering with code directly on GitHub (doesn't work with Safari browser) starting from step 3 in a python notebook `scripts/gene_selection_rora_treg.ipynb`
+
+---------------------------------
+Step 1: Finding chromatin changes in RORA KO Treg relevant for Treg identity and function in non-lymphoid tissues
+---------------------------------
+
+To filter genes potentially regulated by RORA in Treg and important for controlling Treg fate,
+identity and function in the context of non-lymphoid tissues we used marker gene lists
+of Treg and Tmem cells in colon, skin and draining lymph nodes.
+Data were taken from Miragaia et al. 2019. See data/miragaia_et_al/tissue_treg_tmem_genesets/mmc4.xlsx
+and data/miragaia_et_al/source_article for the publication.
+
+Promoter coordinates of tissue Treg and Tmem marker genes were found using EPDnew database
+±10kb from promoter coordinates will be checked for changed histone marks between WT and RORA KO Treg
+
+Executing extend_promoter_regions.R to extend promoter regions...
+
+
+---------------------------------
+Step 2: Intersecting RORA KO Treg changed histone mark peaks with promoter regions...
+---------------------------------
+
+Executing bedtools intersect scripts...
+
+Done finding differential binding in promoters
+
+For full list of histone mark changes found in Miragaia et al. marker genes with tissue and cell type annotation
+see processed_data/merged_promoter_db_table/merged_promoter_db_table_all_tissues.tsv
+
+---------------------------------
+Executing gene_selection_rora_treg.py for further filtering steps...
+
+
+
+-------------------------------------------------------
+gene_selection_rora_treg.py started
+
+
+Parsing file with promoters containing differential binding...
+Read total 2434 differential binding sites within marker gene promoters (There are duplicates because of different tissues).
+
+
+There are 436 tissue Treg and Tmem marker genes containing differential histone mark changes in Rora KO Treg
+Of these genes 47 are transcription factors based on RIKEN database
+(Read 1226 from RIKEN DB list)
+See data/riken_tf/tf-db_riken.txt
+
+
+-------------------------------------------------------
+Step 3: Filtering based on RORA KO Treg differential gene expression
+-------------------------------------------------------
+
+
+Reading RORA KO Treg gene expression data...
+
+
+The following tissue T cell marker genes have changed histone marks and are differentially expressed (p. value < 0.05, FC > ±1.2) between WT and Rora KO Treg 
+{'Trim12a', 'Nr4a3', 'Cxcr6', 'Hist1h2bc', 'Nsd3', 'Pxdc1', 'Cenpw', 'Bach2', 'Ikzf2', 'Ly6g5b', 'Pgam1', 'Havcr2', 'Slamf7'}
+
+
+-------------------------------------------------------
+Step 4: Filtering based on the presence of RORA Binding sites
+-------------------------------------------------------
+
+
+Reading annotation of Fang et al 2014 murine liver RORA ChIP-seq...
+Read RORA binding signals in 1124 genes with gene names
+Of the previous list, the following have RORA binding sites 
+{'Trim12a', 'Nr4a3', 'Nsd3', 'Cenpw', 'Bach2', 'Ikzf2', 'Pgam1'}
+
+
+-------------------------------------------------------
+Step 5: Filtering based on tissue Treg transcription factor network gene list
+-------------------------------------------------------
+
+
+To reinforce the focus on the genes, regulating Treg identity and function in non-lymphoid tissues
+we further filtered our candidate genes using known transcription factor genes, exerting broad control
+of Treg.
+Data taken from DiSpirito et al. 2018 Table S2, see data/dispirito_et_al/list_of_tissue_treg_tf_network/aat5861_Table_S2.xlsx (Sheet 2)
+and data/dispirito_et_al/source_article/ for publication
+Reading gene list of tissue-specific Treg transcription factors from DiSpirito et al. 2018...
+
+
+When further filtering the set using DiSpirito et al. TF network list, the result is the following: 
+{'Bach2'}
+

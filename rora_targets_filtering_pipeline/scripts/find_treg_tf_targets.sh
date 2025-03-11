@@ -65,7 +65,7 @@ mv extended* $EXTENDED_PROMOTERS_PATH
 
 echo
 echo ---------------------------------
-echo Step 2: Intersecting RORA KO Treg changed histone mark peaks with promoter regions...
+echo Step 2: Intersecting RORA KO Treg changed histone mark peaks with extended promoter regions...
 echo ---------------------------------
 echo 
 mkdir $OUTPUT_HISTONE_DB_PROMOTERS_PATH
@@ -97,7 +97,7 @@ done
 mv merged_promoter_db_table_all_tissues.tsv $MERGED_TABLE_PATH/merged_promoter_db_table_all_tissues.tsv
 
 echo
-echo Done finding differential binding in promoters
+echo Done finding differential binding in extended promoter regions
 echo
 echo For full list of histone mark changes found in Miragaia et al. marker genes with tissue and cell type annotation
 echo see processed_data/merged_promoter_db_table/merged_promoter_db_table_all_tissues.tsv

@@ -32,12 +32,12 @@ Executing extend_promoter_regions.R to extend promoter regions...
 
 
 ---------------------------------
-Step 2: Intersecting RORA KO Treg changed histone mark peaks with promoter regions...
+Step 2: Intersecting RORA KO Treg changed histone mark peaks with extended promoter regions...
 ---------------------------------
 
 Executing bedtools intersect scripts...
 
-Done finding differential binding in promoters
+Done finding differential binding in extended promoter regions
 
 For full list of histone mark changes found in Miragaia et al. marker genes with tissue and cell type annotation
 see processed_data/merged_promoter_db_table/merged_promoter_db_table_all_tissues.tsv
@@ -53,7 +53,7 @@ gene_selection_rora_treg.py started
 
 Parsing file with promoters containing differential binding...
 
-Read total 2434 differential binding sites within marker gene promoters (There are duplicates because of different tissues).
+Read total 2434 differential binding sites within marker gene promoters vicinity (There are duplicates because of different tissues).
 
 
 There are 436 tissue Treg and Tmem marker genes containing differential histone mark changes in Rora KO Treg

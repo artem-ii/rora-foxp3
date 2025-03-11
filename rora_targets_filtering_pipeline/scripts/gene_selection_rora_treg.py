@@ -34,7 +34,7 @@ df = pd.read_csv(promoters_with_db_sites_file, index_col=False, header=None)
 print("\n")
 print("-------------------------------------------------------")
 print("gene_selection_rora_treg.py started\n\n")
-print("Parsing file with promoters containing differential binding...")
+print("Parsing file with extended promoter regions containing differential binding...")
 
 # Removing rows containing file names
 skip_rows = []
@@ -55,7 +55,7 @@ miragaia_promoters_db = pd.read_csv(promoters_with_db_sites_file,
 # In[106]:
 
 
-print("Read total " + str(miragaia_promoters_db.shape[0]) + " differential binding sites within marker gene promoters (There are duplicates because of different tissues).")
+print("Read total " + str(miragaia_promoters_db.shape[0]) + " differential binding sites within marker gene promoters vicinity (There are duplicates because of different tissues).")
 
 
 # In[107]:

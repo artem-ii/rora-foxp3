@@ -6,6 +6,8 @@ A graphic scheme of the pipeline can be seen in Figure 8b of the article.
 To reproduce the pipeline please clone the repo, navigate to `rora_targets_filtering_pipeline/scripts` and execute `run_gene_filtering_pipeline.sh`
 The script will perform processing and output a report text file with contents similar to those displayed below.
 
+In order for the script to work, please set `ROOT_PATH` variables of the 3 scripts to path strings pointing to `rora_targets_filtering_pipeline` directory on your machine. The `ROOT_PATH` variable is defined in the top section of the scripts `find_treg_tf_targets.sh`, `extend_promoter_regions.R`, `gene_selection_rora_treg.py`.
+
 The code for each step can be found in respective scripts in `scripts` directory.
 You can also observe the stepwise filtering with code directly on GitHub (doesn't work with Safari browser) starting from step 3 in a python notebook `scripts/gene_selection_rora_treg.ipynb`
 

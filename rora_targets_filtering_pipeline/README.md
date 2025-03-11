@@ -73,7 +73,7 @@ Step 3: Filtering based on RORA KO Treg differential gene expression
 Reading RORA KO Treg gene expression data...
 
 
-The following tissue T cell marker genes have changed histone marks and are differentially expressed (p. value < 0.05, FC > ±1.2) between WT and Rora KO Treg 
+The following tissue T cell marker genes have changed histone marks and are differentially expressed (p. value < 0.05, FC > |1.2|) between WT and Rora KO Treg 
 
 {'Trim12a', 'Nr4a3', 'Cxcr6', 'Hist1h2bc', 'Nsd3', 'Pxdc1', 'Cenpw', 'Bach2', 'Ikzf2', 'Ly6g5b', 'Pgam1', 'Havcr2', 'Slamf7'}
 

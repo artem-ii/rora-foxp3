@@ -50,12 +50,16 @@ gene_selection_rora_treg.py started
 
 
 Parsing file with promoters containing differential binding...
+
 Read total 2434 differential binding sites within marker gene promoters (There are duplicates because of different tissues).
 
 
 There are 436 tissue Treg and Tmem marker genes containing differential histone mark changes in Rora KO Treg
+
 Of these genes 47 are transcription factors based on RIKEN database
+
 (Read 1226 from RIKEN DB list)
+
 See data/riken_tf/tf-db_riken.txt
 
 
@@ -68,6 +72,7 @@ Reading RORA KO Treg gene expression data...
 
 
 The following tissue T cell marker genes have changed histone marks and are differentially expressed (p. value < 0.05, FC > ±1.2) between WT and Rora KO Treg 
+
 {'Trim12a', 'Nr4a3', 'Cxcr6', 'Hist1h2bc', 'Nsd3', 'Pxdc1', 'Cenpw', 'Bach2', 'Ikzf2', 'Ly6g5b', 'Pgam1', 'Havcr2', 'Slamf7'}
 
 
@@ -77,8 +82,11 @@ Step 4: Filtering based on the presence of RORA Binding sites
 
 
 Reading annotation of Fang et al 2014 murine liver RORA ChIP-seq...
+
 Read RORA binding signals in 1124 genes with gene names
+
 Of the previous list, the following have RORA binding sites 
+
 {'Trim12a', 'Nr4a3', 'Nsd3', 'Cenpw', 'Bach2', 'Ikzf2', 'Pgam1'}
 
 
@@ -87,14 +95,14 @@ Step 5: Filtering based on tissue Treg transcription factor network gene list
 -------------------------------------------------------
 
 
-To reinforce the focus on the genes, regulating Treg identity and function in non-lymphoid tissues
-we further filtered our candidate genes using known transcription factor genes, exerting broad control
-of Treg.
-Data taken from DiSpirito et al. 2018 Table S2, see data/dispirito_et_al/list_of_tissue_treg_tf_network/aat5861_Table_S2.xlsx (Sheet 2)
-and data/dispirito_et_al/source_article/ for publication
+To reinforce the focus on the genes, regulating Treg identity and function in non-lymphoid tissues we further filtered our candidate genes using known transcription factor genes, exerting broad control of Treg.
+
+Data taken from DiSpirito et al. 2018 Table S2, see data/dispirito_et_al/list_of_tissue_treg_tf_network/aat5861_Table_S2.xlsx (Sheet 2) and data/dispirito_et_al/source_article/ for publication
+
 Reading gene list of tissue-specific Treg transcription factors from DiSpirito et al. 2018...
 
 
 When further filtering the set using DiSpirito et al. TF network list, the result is the following: 
+
 {'Bach2'}
 

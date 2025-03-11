@@ -1,0 +1,413 @@
+---
+title: "RORaFoxp3-microarray-analysis"
+author: "artemii"
+date: '2022-07-05'
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+ROOT_DIR="/Volumes/artemii-4tb/data/rora-foxp3-genomics/microarray/treg-microarray"
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = ROOT_DIR)
+```
+
+## Loading libraries
+
+```{r}
+library(limma)
+library(affy)
+library(statmod)
+library(oligo)
+library(mogene20sttranscriptcluster.db)
+library(genefilter)
+library(tidyverse)
+library(ggplot2)
+library(ggrepel)
+library(svglite)
+
+```
+
+## Reading data
+
+### Get info about samples
+
+```{r}
+targets <- readTargets("config/targets.txt")
+targets
+```
+
+### Construct expression set: RMA normalize and summarize
+
+Core genes level summarization using median-polish
+
+```{r}
+RAW_DATA_PATHS=paste0("raw-data/", targets$FileName)
+# Affy commands don't work here because of MoGene 2.0st array, have to use oligo
+# eset <- justRMA(filenames = RAW_DATA_PATHS)
+
+
+rawData <- read.celfiles(RAW_DATA_PATHS)
+eset <- oligo::rma(rawData, target = "core")
+colnames(eset) <- row.names(targets)
+head(exprs(eset))
+```
+
+## QC
+### MA plots per tissue
+```{r}
+
+invitro_indeces <- 1:20
+ewat_indeces <- 21:26
+spleen_indeces <- 27:34
+lung_indeces <- 35:40
+
+tissue_index_list <- list(invitro_indeces,
+                          ewat_indeces,
+                          spleen_indeces,
+                          lung_indeces)
+
+for (tissue in tissue_index_list){
+  getwd()
+  eset_tissue_slice <- eset[, tissue]
+  
+  par(mar = c(1, 1, 1, 1))
+  xl <- c(2.8, 4)
+  yl <- c(-1, 1)
+  MAplot(eset_tissue_slice,
+         pairs = TRUE,
+         ylim = yl,
+         xlim = xl,
+         plotFun = plot)
+  }
+
+```
+
+### Box plots
+
+```{r}
+oligo::boxplot(eset)
+```
+
+### Density plots
+```{r}
+oligo::hist(eset, transfo=log2)
+```
+
+### Array quality
+
+```{r}
+arrayw <- arrayWeights(eset)
+barplot(arrayw, xlab="Array", ylab="Weight", col="white", las=2)
+abline(h=1, lwd=1, lty=2)
+```
+
+### MDS plot
+
+In vitro, eWAT, spleen and lung samples are distinduishable in full MDS plot
+
+```{r}
+plotMDS(eset)
+```
+
+## Annotation
+
+Select probes with largest variance of those, which map to a single gene
+
+```{r}
+stat <- apply(exprs(eset), 1, var)
+single_gene_probes <- findLargest(row.names(eset), stat, data = "mogene20sttranscriptcluster")
+eset <- eset[row.names(eset) %in% single_gene_probes,]
+dim(eset)
+```
+
+```{r}
+Anno <- AnnotationDbi::select(mogene20sttranscriptcluster.db, keys = row.names(eset), columns = c("ENTREZID", "SYMBOL", "GENENAME"), keytype = "PROBEID")
+Anno <- Anno[!is.na(Anno$ENTREZID),]
+keep_probes <- Anno$PROBEID
+eset <- eset[row.names(eset) %in% keep_probes, ]
+fData(eset) <- Anno[Anno$PROBEID %in% row.names(eset),]
+head(fData(eset))
+```
+
+```{r}
+dim(eset)
+```
+
+```{r}
+dim(fData(eset))
+```
+
+```{r}
+pData(eset) <- targets
+pData(eset)
+```
+
+```{r}
+eset
+```
+
+## Multi-factor experiment blocking linear model
+### Prepare design matrix
+
+```{r}
+Experiment <- as.factor(targets$Experiment)
+Condition <- factor(paste(targets$Genotype, targets$Tissue,
+                          targets$Treatment, sep = "."),
+                    levels = c("WT.Spleen.CD", "KO.Spleen.CD",
+                               "WT.eWAT.HFD", "KO.eWAT.HFD",
+                               "WT.Lung.HDM", "KO.Lung.HDM",
+                               "WT.mLN.HDM", "KO.mLN.HDM",
+                               "WT.in_vitro.IL2", "KO.in_vitro.IL2",
+                               "WT.in_vitro.IL2_IL4", "KO.in_vitro.IL2_IL4")
+                    )
+design <- model.matrix(~ 0 + Condition)
+colnames(design) <- levels(Condition)
+colnames(design)
+```
+
+### Compute correlations for technical replicates
+```{r}
+corfit <- duplicateCorrelation(eset, design, block = targets$Experiment)
+corfit$consensus
+```
+
+### Fit a linear model
+
+```{r}
+fit <- lmFit(eset, design, block = targets$Experiment, correlation = corfit$consensus.correlation)
+multi_exp <- fit
+contrast.matrix <- makeContrasts(
+  KOvsWTinIL2 = KO.in_vitro.IL2-WT.in_vitro.IL2,
+  KOvsWTinIL2_IL4 = KO.in_vitro.IL2_IL4-WT.in_vitro.IL2_IL4,
+  Diff_IL4vsIL2 = (KO.in_vitro.IL2_IL4-KO.in_vitro.IL2) - (WT.in_vitro.IL2_IL4-WT.in_vitro.IL2),
+  KOvsWTineWAT = KO.eWAT.HFD-WT.eWAT.HFD,
+  KOvsWTinLung = KO.Lung.HDM-WT.Lung.HDM,
+  KOvsWTinmLN = KO.mLN.HDM-WT.mLN.HDM,
+  KOvsWTinSpleen = KO.Spleen.CD-WT.Spleen.CD,
+  Diff_mLNvsSpleen = (KO.mLN.HDM-KO.Spleen.CD) - (WT.mLN.HDM-WT.Spleen.CD),
+  levels = design
+)
+fit2 <- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
+```
+
+
+#### IL2 in vitro samples
+```{r}
+topTable(fit2, coef = "KOvsWTinIL2", number = 500)
+```
+
+#### IL2 + IL4 in vitro samples
+```{r}
+topTable(fit2, coef = "KOvsWTinIL2_IL4", number = 500)
+```
+
+#### Response to IL4 in KOvsWT
+```{r}
+topTable(fit2, coef = "Diff_IL4vsIL2", number = 500)
+```
+#### Epididymal White Adipose Tissue
+```{r}
+topTable(fit2, coef = "KOvsWTineWAT", number = 500)
+```
+
+#### Lung
+```{r}
+topTable(fit2, coef = "KOvsWTinLung", number = 500)
+```
+
+#### Mesenteric lymph nodes
+```{r}
+topTable(fit2, coef = "KOvsWTinmLN", number = 500)
+```
+
+#### Spleen
+```{r}
+topTable(fit2, coef = "KOvsWTinSpleen", number = 500)
+```
+
+#### Activated vs normal lymphoid Treg
+```{r}
+topTable(fit2, coef = "Diff_mLNvsSpleen", number = 500)
+```
+
+
+## Visualization
+### Volcano plot function
+
+```{r}
+plot_volcano <- function(exp_data, top_label = 5,
+                         lim_logFC = F,
+                         lim_FDR = F,
+                         lim_up_x = NULL,
+                         lim_dn_x = NULL,
+                         logfc_fdr_thresholds_for_labels = NULL,
+                         additional_genes_to_label = c()) {
+
+  
+  exp_data <- exp_data %>%
+    mutate(
+      Significance = case_when(
+        abs(logFC) >= log(2, base = 2) & P.Value <= 0.05 ~ "FDR_0_05",
+        TRUE ~ "UNCHANGED"
+      )
+    )
+  
+
+  if (length(logfc_fdr_thresholds_for_labels) != 0) {
+    logfc_threshold = logfc_fdr_thresholds_for_labels[1]
+    fdr_threshold = logfc_fdr_thresholds_for_labels[2]
+    exp_data <- exp_data %>%
+      mutate(
+        Expression = case_when(logFC >= logfc_threshold & P.Value <= fdr_threshold ~ "Up-regulated",
+                               logFC <= - logfc_threshold & P.Value <= fdr_threshold ~ "Down-regulated",
+                               TRUE ~ "Unchanged")
+      )
+  } else {
+    logfc_threshold = log(2, base = 2)
+    fdr_threshold = 0.05
+    exp_data <- exp_data %>%
+      mutate(
+        Expression = case_when(logFC >= logfc_threshold & P.Value <= fdr_threshold ~ "Up-regulated",
+                             logFC <= -logfc_threshold & P.Value <= fdr_threshold ~ "Down-regulated",
+                             TRUE ~ "Unchanged")
+      )
+    }
+    
+  top <-  top_label
+  top_genes_df <- bind_rows(
+    exp_data %>%
+      filter(Expression == 'Up-regulated') %>%
+      arrange(P.Value, desc(abs(logFC))) %>%
+      head(top),
+    exp_data %>%
+      filter(Expression == 'Down-regulated') %>%
+      arrange(P.Value, desc(abs(logFC))) %>%
+      head(top),
+  )
+  
+  genes_to_label_df <- bind_rows(
+    top_genes_df,
+    exp_data %>%
+      filter(SYMBOL %in% additional_genes_to_label)
+  )
+  
+  print(head(genes_to_label_df, n = top))
+  if (is.null(lim_up_x)){
+    lim_up_x <- max(genes_to_label_df$logFC) * 1.2
+  }
+  
+  if (is.null(lim_dn_x)){
+    lim_dn_x <- min(genes_to_label_df$logFC) * 1.2
+  }
+  
+  lim_up_y <- -log(min(genes_to_label_df$P.Value), 10) * 1.2
+    
+  lim_x <- max(c(abs(lim_up_x), abs(lim_dn_x)))
+  
+  num_up_regulated <- nrow(filter(exp_data, Expression == 'Up-regulated'))
+  print(filter(exp_data, Expression == 'Up-regulated'))
+  num_dn_regulated <- nrow(filter(exp_data, Expression == 'Down-regulated'))
+  print(filter(exp_data, Expression == 'Down-regulated'))
+  
+   ggplot(exp_data, aes(x = logFC, y = -log(P.Value, 10))) +
+     geom_point(aes(color = Expression), size = 2) +
+     
+     scale_x_continuous(expand = c(0, 0), limits = c(lim_dn_x, lim_up_x)) +
+     scale_y_continuous(expand = c(0, 0), limits = c(0, lim_up_y)) +
+     
+     
+     scale_color_manual(values = c("Unchanged" = "#5C88DA",
+                                   "Up-regulated" = "#CC0C00",
+                                   "Down-regulated" = "#CC0C00")) +
+     
+     
+     geom_vline(xintercept=c(-logfc_threshold, logfc_threshold),
+                col="grey",
+                linetype = "dashed",
+                size = 0.8) +
+     geom_hline(yintercept=-log10(fdr_threshold),
+                col="grey",
+                linetype = "dashed",
+                size = 0.8) +
+     annotate(geom = "label",
+              x = c(- logfc_threshold, logfc_threshold),
+              y = lim_up_y - 0.2,
+              label = c(- logfc_threshold, logfc_threshold),
+              fill = "white",
+              color =  "grey",
+              size = 5,
+              label.size = NA,
+              label.padding = unit(0, "lines")) +
+     
+     
+     geom_text_repel(data = genes_to_label_df,
+                     aes(logFC, -log(P.Value, 10), label = SYMBOL),
+                     size = 6,
+                     max.overlaps = 20,
+                     min.segment.length = 0,
+                     segment.size = 1,
+                     #nudge_x = - 0.2,
+                     #force_pull = - 0.007
+                     ) +
+     
+     
+     annotate(geom = "text",
+              x = lim_x - 0.5,
+              y = lim_up_y - 0.2,
+              label = paste0("Up: ", num_up_regulated),
+              size = 5,
+              color = "grey") +
+     annotate(geom = "text",
+              x = lim_dn_x + 0.5,
+              y = lim_up_y - 0.2,
+              label = paste0("Down: ", num_dn_regulated),
+              size = 5,
+              color = "grey") +
+     annotate(geom = "text",
+              x = lim_dn_x + 0.45,
+              y = -log10(fdr_threshold) - 0.2,
+              label = paste0("P = ", fdr_threshold),
+              size = 5,
+              color = "grey") +
+
+     theme_classic() +
+     theme(legend.position = "none")
+   }
+```
+
+
+```{r}
+diff_exp_data <- topTable(fit2, coef = "KOvsWTinIL2_IL4", number = 20000)
+
+
+
+```
+
+```{r}
+diff_exp_data_old <- na.omit(read_delim("/Volumes/artemii-4tb/data/desktop-archive/desktop_archive_20250128/KO_act_IL4-WT_act_IL4(ComBat)-31-may-2020.txt"))
+```
+
+#### Plot
+
+```{r}
+plot_volcano(diff_exp_data_old,
+             top_label = 0,
+             lim_up_x = 3,
+             lim_dn_x = -2,
+             logfc_fdr_thresholds_for_labels = c(0.58, 0.05),
+             additional_genes_to_label = c("Bach2", "Cd226", "Il5", "Prf1", "Il3",
+                                           "Csf2", "Gzme", "Gzmd", "Gzmf", "Gzmg",
+                                           "Gstm5", "Trim30d", "Gm23482"
+                                           ))
+```
+
+```{r}
+ggsave("~/Desktop/volcano_IL4_act.svg",
+       width = 1572,
+       height = 1456,
+       units = "px",
+       device = svglite,)
+```
+
